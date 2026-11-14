@@ -1,3 +1,4 @@
+import os
 
 from pathlib import Path
 from functools import lru_cache
@@ -12,7 +13,12 @@ import gspread
 
 BASE_DIR = Path(__file__).resolve().parent
 
-CREDENTIALS_FILE = BASE_DIR / "service_account.json"
+CREDENTIALS_FILE = Path(
+    os.environ.get(
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        BASE_DIR / "service_account.json"
+    )
+)
 
 SPREADSHEET_ID = "198xm5KrUsmvhweVEzz_ka487uVrxTMrq2WpEQapCPQk"
 

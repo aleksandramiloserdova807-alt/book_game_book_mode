@@ -1116,4 +1116,52 @@ document.addEventListener("DOMContentLoaded", function () {
 
     });
 
+    subTabs.forEach(function (tab) {
+
+        tab.addEventListener("click", function () {
+
+            const selectedTab = tab.dataset.subtab;
+
+            subTabs.forEach(item => {
+                item.classList.remove("active");
+            });
+
+            subPanels.forEach(panel => {
+                panel.classList.remove("active");
+            });
+
+            tab.classList.add("active");
+
+            const selectedPanel = document.querySelector(
+                `.master-profile-subpanel[data-subpanel="${selectedTab}"]`
+            );
+
+            if (selectedPanel) {
+                selectedPanel.classList.add("active");
+            }
+
+            if (selectedTab === "list" && !tasksLoaded) {
+                loadTasks();
+            }
+
+        });
+
+    });
+
+    // --------------------------------
+    // ВЫХОД ИЗ ПРОФИЛЯ МАСТЕРА
+    // --------------------------------
+
+    const logoutButton = document.getElementById(
+        "master-logout-button"
+    );
+
+    if (logoutButton) {
+
+        logoutButton.addEventListener("click", function () {
+            window.location.href = "/logout";
+        });
+
+    }
+
 });

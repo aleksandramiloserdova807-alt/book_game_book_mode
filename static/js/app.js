@@ -5,10 +5,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     const radius = 20;
     const hexWidth = Math.sqrt(3) * radius;
     const hexHeight = radius * 2;
-
     const svgNS = "http://www.w3.org/2000/svg";
 
-    // Координаты вершин шестиугольника вычисляем один раз
+    // Вершины шестиугольника
     const hexOffsets = [];
 
     for (let i = 0; i < 6; i++) {
@@ -20,13 +19,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
     }
 
-    // --------------------------------
-    // ЗАГРУЗКА ДАННЫХ
-    // --------------------------------
-
+    // Загрузка клеток
     let cells;
-
-    const fetchStart = performance.now();
 
     try {
         const response = await fetch("/api/cells");
@@ -48,43 +42,26 @@ document.addEventListener("DOMContentLoaded", async function () {
         return;
     }
 
-    console.log(
-        `Загрузка данных: ${(performance.now() - fetchStart).toFixed(1)} мс`
-    );
-
     if (cells.length === 0) {
         console.error("В таблице нет клеток.");
         return;
     }
 
-    // --------------------------------
-    // РАЗМЕРЫ КАРТЫ
-    // --------------------------------
-
+    // Размеры карты
     const columns = Math.max(...cells.map(cell => Number(cell.column)));
     const rows = Math.max(...cells.map(cell => Number(cell.row)));
 
     const mapWidth = columns * hexWidth + hexWidth / 2;
     const mapHeight = (rows - 1) * radius * 1.5 + hexHeight;
 
-    // --------------------------------
-    // СОЗДАНИЕ SVG
-    // --------------------------------
-
+    // Создание SVG
     const svg = document.createElementNS(svgNS, "svg");
 
-    svg.setAttribute(
-        "viewBox",
-        `0 0 ${mapWidth} ${mapHeight}`
-    );
-
+    svg.setAttribute("viewBox", `0 0 ${mapWidth} ${mapHeight}`);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     svg.setAttribute("class", "hex-map");
 
-    // Все ячейки сначала создаются в памяти
     const fragment = document.createDocumentFragment();
-
-    const renderStart = performance.now();
 
     cells.forEach(function (cell) {
         const col = Number(cell.column) - 1;
@@ -101,30 +78,106 @@ document.addEventListener("DOMContentLoaded", async function () {
             return `${centerX + offset.x},${centerY + offset.y}`;
         });
 
-        const hexagon = document.createElementNS(
-            svgNS,
-            "polygon"
-        );
+        const hexagon = document.createElementNS(svgNS, "polygon");
 
         hexagon.setAttribute("points", points.join(" "));
         hexagon.setAttribute("class", "hex-cell");
         hexagon.setAttribute("data-cell-id", cell.cell_id);
+        hexagon.setAttribute("data-column", cell.column);
+        hexagon.setAttribute("data-row", cell.row);
+        hexagon.setAttribute("data-task", cell.task);
 
         fragment.appendChild(hexagon);
     });
 
-    // Добавляем все 600 ячеек одной операцией
     svg.appendChild(fragment);
     map.appendChild(svg);
-
-    console.log(
-        `Отрисовка карты: ${(performance.now() - renderStart).toFixed(1)} мс`
-    );
 
     console.log(`Карта создана: ${cells.length} ячеек`);
 
     // --------------------------------
-    // МАСШТАБИРОВАНИЕ И ПЕРЕМЕЩЕНИЕ
+    // ОКОШКО ИНФОРМАЦИИ
+    // --------------------------------
+
+    const popup = document.createElement("div");
+    popup.className = "cell-info-popup";
+
+    const popupTitle = document.createElement("div");
+    popupTitle.className = "cell-info-title";
+
+    const popupCoordinates = document.createElement("div");
+    popupCoordinates.className = "cell-info-coordinates";
+
+    const popupTask = document.createElement("div");
+    popupTask.className = "cell-info-task";
+
+    popup.appendChild(popupTitle);
+    popup.appendChild(popupCoordinates);
+    popup.appendChild(popupTask);
+
+    map.appendChild(popup);
+
+    let selectedCell = null;
+
+    function updatePopupPosition() {
+        if (!selectedCell) return;
+
+        const cellRect = selectedCell.getBoundingClientRect();
+        const mapRect = map.getBoundingClientRect();
+
+        popup.classList.add("visible");
+
+        const popupWidth = popup.offsetWidth;
+        const popupHeight = popup.offsetHeight;
+
+        let left =
+            cellRect.left +
+            cellRect.width / 2 -
+            popupWidth / 2 -
+            mapRect.left;
+
+        let top =
+            cellRect.top -
+            popupHeight -
+            8 -
+            mapRect.top;
+
+        popup.classList.remove("below");
+
+        // Если сверху недостаточно места, показываем снизу
+        if (top < 8) {
+            top = cellRect.bottom + 8 - mapRect.top;
+            popup.classList.add("below");
+        }
+
+        // Не позволяем окошку выходить за границы карты
+        left = Math.max(
+            8,
+            Math.min(left, map.clientWidth - popupWidth - 8)
+        );
+
+        top = Math.max(
+            8,
+            Math.min(top, map.clientHeight - popupHeight - 8)
+        );
+
+        popup.style.left = `${left}px`;
+        popup.style.top = `${top}px`;
+    }
+
+    function showCellInfo(cell) {
+        popupTitle.textContent = `Клетка № ${cell.dataset.cellId}`;
+
+        popupCoordinates.textContent =
+            `Столбец: ${cell.dataset.column} · Строка: ${cell.dataset.row}`;
+
+        popupTask.textContent = cell.dataset.task;
+
+        updatePopupPosition();
+    }
+
+    // --------------------------------
+    // МАСШТАБИРОВАНИЕ
     // --------------------------------
 
     const view = {
@@ -142,9 +195,10 @@ document.addEventListener("DOMContentLoaded", async function () {
             "viewBox",
             `${view.x} ${view.y} ${view.width} ${view.height}`
         );
+
+        updatePopupPosition();
     }
 
-    // Масштабирование колесом мыши
     svg.addEventListener("wheel", function (event) {
         event.preventDefault();
 
@@ -175,8 +229,14 @@ document.addEventListener("DOMContentLoaded", async function () {
         updateViewBox();
     }, { passive: false });
 
-    // Перемещение карты мышью
+    // --------------------------------
+    // ПЕРЕМЕЩЕНИЕ КАРТЫ
+    // --------------------------------
+
     let dragging = false;
+    let hasDragged = false;
+    let suppressNextClick = false;
+
     let startX = 0;
     let startY = 0;
     let startViewX = 0;
@@ -186,6 +246,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (event.button !== 0) return;
 
         dragging = true;
+        hasDragged = false;
+        suppressNextClick = false;
 
         startX = event.clientX;
         startY = event.clientY;
@@ -199,6 +261,17 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     svg.addEventListener("pointermove", function (event) {
         if (!dragging) return;
+
+        const distance = Math.hypot(
+            event.clientX - startX,
+            event.clientY - startY
+        );
+
+        if (distance > 5) {
+            hasDragged = true;
+        }
+
+        if (!hasDragged) return;
 
         const rect = svg.getBoundingClientRect();
 
@@ -215,6 +288,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
 
     function stopDragging() {
+        if (hasDragged) {
+            suppressNextClick = true;
+        }
+
         dragging = false;
         svg.classList.remove("dragging");
     }
@@ -222,4 +299,47 @@ document.addEventListener("DOMContentLoaded", async function () {
     svg.addEventListener("pointerup", stopDragging);
     svg.addEventListener("pointercancel", stopDragging);
     svg.addEventListener("lostpointercapture", stopDragging);
+
+    // --------------------------------
+    // ВЫБОР КЛЕТКИ
+    // --------------------------------
+
+    svg.addEventListener("click", function (event) {
+        if (suppressNextClick) {
+            suppressNextClick = false;
+            return;
+        }
+
+        const element = document.elementFromPoint(
+            event.clientX,
+            event.clientY
+        );
+
+        if (!element) return;
+
+        const cell = element.closest(".hex-cell");
+
+        if (!cell) return;
+
+        if (selectedCell) {
+            selectedCell.classList.remove("selected");
+        }
+
+        cell.classList.add("selected");
+        selectedCell = cell;
+
+        const selectedCellData = {
+            cell_id: cell.dataset.cellId,
+            column: Number(cell.dataset.column),
+            row: Number(cell.dataset.row),
+            task: cell.dataset.task
+        };
+
+        console.log("Выбрана клетка:", selectedCellData);
+
+        showCellInfo(cell);
+    });
+
+    // Обновление положения окошка при изменении размера окна
+    window.addEventListener("resize", updatePopupPosition);
 });

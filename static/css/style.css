@@ -18,6 +18,7 @@ body {
 }
 
 #game-map {
+    position: relative;
     width: 100%;
     height: 100vh;
     height: 100dvh;
@@ -47,4 +48,69 @@ body {
     stroke-width: 1.2;
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
+    cursor: pointer;
+}
+
+    .hex-cell.selected {
+        fill: #eeeeee;
+        stroke: #777777;
+        stroke-width: 2;
+    }
+
+/* Окошко информации о клетке */
+
+.cell-info-popup {
+    display: none;
+    position: absolute;
+    z-index: 10;
+    width: 220px;
+    padding: 12px;
+    background: #ffffff;
+    border: 1px solid #dedede;
+    border-radius: 5px;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+    .cell-info-popup.visible {
+        display: block;
+    }
+
+    .cell-info-popup::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -8px;
+        width: 14px;
+        height: 14px;
+        background: #ffffff;
+        border-right: 1px solid #dedede;
+        border-bottom: 1px solid #dedede;
+        transform: translateX(-50%) rotate(45deg);
+    }
+
+    .cell-info-popup.below::after {
+        top: -8px;
+        bottom: auto;
+        border: none;
+        border-left: 1px solid #dedede;
+        border-top: 1px solid #dedede;
+    }
+
+.cell-info-title {
+    margin-bottom: 7px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.cell-info-coordinates {
+    margin-bottom: 8px;
+    color: #777777;
+    font-size: 12px;
+}
+
+.cell-info-task {
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
 }

@@ -1,3 +1,27 @@
+
+/* ========================================
+   ОСНОВНАЯ СТРАНИЦА
+======================================== */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    background: #ffffff;
+}
+
+/* ========================================
+   ИГРОВАЯ ОБЛАСТЬ
+======================================== */
+
 #game-map {
     position: relative;
     width: 100%;
@@ -7,35 +31,45 @@
     overflow: hidden;
 }
 
-/* Неподвижная рамка игрового поля */
+/* ========================================
+   НЕПОДВИЖНАЯ РАМКА ИГРОВОГО ПОЛЯ
+======================================== */
+
 
 #map-frame {
     position: absolute;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: var(--map-frame-width);
-    height: var(--map-frame-height);
-    border: 1px solid #dedede;
-    background: #ffffff;
     overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #dedede;
 }
-/* Масштабируемая SVG-карта */
+
+
+/* ========================================
+   SVG-КАРТА
+======================================== */
+
 
 .hex-map {
     display: block;
     width: 100%;
     height: 100%;
-    cursor: grab;
-    touch-action: none;
+    overflow: hidden;
     user-select: none;
+    touch-action: none;
+    cursor: grab;
 }
 
     .hex-map.dragging {
         cursor: grabbing;
     }
 
-/* Ячейки карты */
+
+/* ========================================
+   ШЕСТИУГОЛЬНЫЕ КЛЕТКИ
+======================================== */
 
 .hex-cell {
     fill: #ffffff;
@@ -44,10 +78,444 @@
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
     cursor: pointer;
+    transition: fill 0.15s ease, stroke 0.15s ease;
 }
+
+    .hex-cell:hover {
+        fill: #f3f3f3;
+        stroke: #bcbcbc;
+    }
 
     .hex-cell.selected {
         fill: #eeeeee;
-        stroke: #777777;
-        stroke-width: 2;
+        stroke: #555555;
+        stroke-width: 1.8;
     }
+
+/* ========================================
+   ВСПЛЫВАЮЩЕЕ ОКНО ИНФОРМАЦИИ О КЛЕТКЕ
+======================================== */
+
+.cell-info-popup {
+    display: none;
+    position: absolute;
+    z-index: 10;
+    width: 240px;
+    max-width: calc(100% - 16px);
+    padding: 12px 14px;
+    background: #ffffff;
+    border: 1px solid #dedede;
+    border-radius: 6px;
+    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.12);
+    color: #333333;
+    font-size: 13px;
+    line-height: 1.45;
+    pointer-events: none;
+}
+
+    .cell-info-popup.visible {
+        display: block;
+    }
+
+.cell-info-title {
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.cell-info-coordinates {
+    margin-bottom: 8px;
+    color: #777777;
+    font-size: 12px;
+}
+
+.cell-info-task {
+    overflow-wrap: anywhere;
+}
+
+.cell-info-popup.below {
+    /* Положение ниже клетки задаётся через JS */
+}
+
+/* ========================================
+   КНОПКА ПРОФИЛЯ МАСТЕРА
+======================================== */
+
+#master-profile-button {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 54px;
+    padding: 7px 12px;
+    background: #ffffff;
+    border: 1px solid #dedede;
+    border-radius: 0 6px 6px 6px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+    #master-profile-button:hover {
+        background: #f8f8f8;
+    }
+
+.master-profile-name {
+    color: #333333;
+    font-size: 14px;
+}
+
+.master-profile-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #333333;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+/* ========================================
+   ОКНО ПРОФИЛЯ
+======================================== */
+
+#master-profile-window {
+    display: none;
+    position: absolute;
+    top: 54px;
+    left: 0;
+    z-index: 20;
+    width: 420px;
+    max-width: 100%;
+    height: auto;
+    max-height: calc(100vh - 70px);
+    min-height: 220px;
+    background: #ffffff;
+    border: 1px solid #dedede;
+    border-radius: 6px;
+    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.10);
+    overflow: hidden;
+}
+
+    #master-profile-window.visible {
+        display: flex;
+        flex-direction: column;
+    }
+
+.master-profile-header {
+    padding: 16px;
+    border-bottom: 1px solid #eeeeee;
+    font-size: 15px;
+    font-weight: 600;
+    color: #333333;
+}
+
+
+/* Основные вкладки */
+
+.master-profile-tabs {
+    display: flex;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.master-profile-main-tab {
+    flex: 1;
+    padding: 14px;
+    background: #ffffff;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #777777;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+    .master-profile-main-tab:hover {
+        background: #f8f8f8;
+        color: #333333;
+    }
+
+    .master-profile-main-tab.active {
+        color: #333333;
+        border-bottom-color: #333333;
+    }
+
+/* Основные панели */
+
+.master-profile-main-panel {
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 14px;
+    overflow: hidden;
+}
+
+    .master-profile-main-panel.active {
+        display: flex;
+        flex-direction: column;
+    }
+
+/* Подвкладки заданий */
+
+
+.master-profile-subtabs {
+    display: flex;
+    width: calc(100% + 28px);
+    margin: -14px -14px 14px;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.master-profile-subtab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 12px 6px;
+    background: #ffffff;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #777777;
+    font-family: inherit;
+    font-size: 12px;
+    text-align: center;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+    .master-profile-subtab:hover {
+        background: #f8f8f8;
+        color: #333333;
+    }
+
+    .master-profile-subtab.active {
+        color: #333333;
+        border-bottom-color: #333333;
+    }
+
+
+/* Панели подвкладок */
+
+.master-profile-subpanel {
+    display: none;
+}
+
+    .master-profile-subpanel.active {
+        display: block;
+    }
+
+/* ========================================
+   АДАПТАЦИЯ ДЛЯ УЗКОГО ЭКРАНА
+======================================== */
+
+@media (max-width: 480px) {
+    #master-profile-window {
+        width: 100%;
+    }
+
+    .master-profile-tab {
+        padding: 11px 8px;
+        font-size: 11px;
+    }
+}
+
+
+/* --------------------------------
+   СПИСОК ИГРОКОВ В ПРОФИЛЕ МАСТЕРА
+-------------------------------- */
+
+.player-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.player-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
+    padding: 8px 2px;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.player-list-identity {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.player-list-name {
+    color: #333333;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.player-color-dot {
+    display: inline-block;
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
+    border: 1px solid #777777;
+    border-radius: 50%;
+}
+
+.player-master-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    border: 1px solid #777777;
+    border-radius: 50%;
+    color: #333333;
+    background: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.player-pending-count {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    color: #555555;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.player-list-message,
+.player-list-empty {
+    padding: 16px 2px;
+    color: #777777;
+    font-size: 13px;
+}
+
+
+/* Счётчики заданий игроков */
+
+.player-task-counts {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    min-width: 48px;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.player-accepted-count {
+    color: #222222;
+}
+
+.player-pending-count {
+    color: #d32f2f;
+}
+
+/* --------------------------------
+   СПИСОК ЗАДАНИЙ
+-------------------------------- */
+
+.task-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.task-list-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px 2px;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.task-list-cell {
+    color: #777777;
+    font-size: 11px;
+}
+
+.task-list-text {
+    color: #333333;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.task-list-message {
+    padding: 16px 2px;
+    color: #777777;
+    font-size: 13px;
+}
+
+/* Прокрутка списков в профиле мастера */
+
+.player-list,
+.task-list {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #cccccc transparent;
+}
+
+    .player-list::-webkit-scrollbar,
+    .task-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .player-list::-webkit-scrollbar-thumb,
+    .task-list::-webkit-scrollbar-thumb {
+        background: #cccccc;
+        border-radius: 4px;
+    }
+
+.master-profile-header,
+.master-profile-tabs,
+.master-profile-subtabs {
+    flex-shrink: 0;
+}
+
+.player-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #cccccc transparent;
+}
+
+.master-profile-subpanel.active {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #cccccc transparent;
+}
+
+.task-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: auto;
+}
+
+.player-list::-webkit-scrollbar,
+.master-profile-subpanel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.player-list::-webkit-scrollbar-thumb,
+.master-profile-subpanel::-webkit-scrollbar-thumb {
+    background: #cccccc;
+    border-radius: 4px;
+}

@@ -1,21 +1,48 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Игра КР</title>
+    <title>Вход — Игра КР</title>
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
 
-    <main id="game-map">
-        <div id="map-frame"></div>
+<body class="login-page">
+
+    <main class="login-container">
+
+        <form class="login-form" action="{{ url_for('login') }}" method="POST">
+
+            <h1>Игра КР</h1>
+            <p class="login-subtitle">Вход в режим мастера</p>
+
+            <label for="login">Логин</label>
+            <input type="text"
+                   id="login"
+                   name="login"
+                   autocomplete="username"
+                   required>
+
+            <label for="password">Пароль</label>
+            <input type="password"
+                   id="password"
+                   name="password"
+                   autocomplete="current-password"
+                   required>
+
+            {% if error %}
+            <div class="login-error">{{ error }}</div>
+            {% endif %}
+
+            <button type="submit">Войти</button>
+
+        </form>
+
     </main>
-
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
 </body>
 </html>

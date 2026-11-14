@@ -1,0 +1,110 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Игра КР</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <main id="game-map">
+        <div id="map-frame"></div>
+
+        <!-- Кнопка профиля мастера -->
+        <button id="master-profile-button" type="button">
+            <span class="master-profile-name">
+                {{ session.get('player_name', 'Мастер') }}
+            </span>
+            <span class="master-profile-avatar">М</span>
+        </button>
+
+
+        <!-- Окно профиля -->
+        <div id="master-profile-window">
+
+            <!-- Основные вкладки -->
+            <div class="master-profile-tabs">
+
+                <button class="master-profile-main-tab active"
+                        data-main-tab="players"
+                        type="button">
+                    Игроки
+                </button>
+
+                <button class="master-profile-main-tab"
+                        data-main-tab="tasks"
+                        type="button">
+                    Задания
+                </button>
+
+            </div>
+
+            <!-- Игроки -->
+            <div class="master-profile-main-panel active"
+                 data-main-panel="players">
+            </div>
+
+            <!-- Задания -->
+            <div class="master-profile-main-panel"
+                 data-main-panel="tasks">
+
+                <!-- Подвкладки заданий -->
+                <div class="master-profile-subtabs">
+
+                    <button class="master-profile-subtab active"
+                            data-subtab="pending"
+                            type="button">
+                        Непроверенные
+                    </button>
+
+                    <button class="master-profile-subtab"
+                            data-subtab="rejected"
+                            type="button">
+                        Непринятые
+                    </button>
+
+                    <button class="master-profile-subtab"
+                            data-subtab="list"
+                            type="button">
+                        Список
+                    </button>
+
+                </div>
+
+                <!-- Содержимое подвкладок -->
+                <div class="master-profile-subpanel active"
+                     data-subpanel="pending">
+
+                    <div class="task-list-message">
+                        Пока что нет непроверенных заданий
+                    </div>
+
+                </div>
+
+                <div class="master-profile-subpanel"
+                     data-subpanel="rejected">
+
+                    <div class="task-list-message">
+                        Пока что нет непринятых заданий
+                    </div>
+
+                </div>
+
+                <div class="master-profile-subpanel"
+                     data-subpanel="list">
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+</body>
+</html>

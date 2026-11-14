@@ -1,21 +1,76 @@
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
     const map = document.getElementById("game-map");
 
-    // Настройки карты
-    const columns = 30;
-    const rows = 20;
     const radius = 20;
-
     const hexWidth = Math.sqrt(3) * radius;
     const hexHeight = radius * 2;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+
+    // РљРѕРѕСЂРґРёРЅР°С‚С‹ РІРµСЂС€РёРЅ С€РµСЃС‚РёСѓРіРѕР»СЊРЅРёРєР° РІС‹С‡РёСЃР»СЏРµРј РѕРґРёРЅ СЂР°Р·
+    const hexOffsets = [];
+
+    for (let i = 0; i < 6; i++) {
+        const angle = (-90 + i * 60) * Math.PI / 180;
+
+        hexOffsets.push({
+            x: radius * Math.cos(angle),
+            y: radius * Math.sin(angle)
+        });
+    }
+
+    // --------------------------------
+    // Р—РђР“Р РЈР—РљРђ Р”РђРќРќР«РҐ
+    // --------------------------------
+
+    let cells;
+
+    const fetchStart = performance.now();
+
+    try {
+        const response = await fetch("/api/cells");
+
+        if (!response.ok) {
+            throw new Error(`РћС€РёР±РєР° СЃРµСЂРІРµСЂР°: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !Array.isArray(data.cells)) {
+            throw new Error("РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ СЃРµСЂРІРµСЂР°.");
+        }
+
+        cells = data.cells;
+
+    } catch (error) {
+        console.error("РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РєР°СЂС‚Сѓ:", error);
+        return;
+    }
+
+    console.log(
+        `Р—Р°РіСЂСѓР·РєР° РґР°РЅРЅС‹С…: ${(performance.now() - fetchStart).toFixed(1)} РјСЃ`
+    );
+
+    if (cells.length === 0) {
+        console.error("Р’ С‚Р°Р±Р»РёС†Рµ РЅРµС‚ РєР»РµС‚РѕРє.");
+        return;
+    }
+
+    // --------------------------------
+    // Р РђР—РњР•Р Р« РљРђР РўР«
+    // --------------------------------
+
+    const columns = Math.max(...cells.map(cell => Number(cell.column)));
+    const rows = Math.max(...cells.map(cell => Number(cell.row)));
 
     const mapWidth = columns * hexWidth + hexWidth / 2;
     const mapHeight = (rows - 1) * radius * 1.5 + hexHeight;
 
-    const svgNS = "http://www.w3.org/2000/svg";
+    // --------------------------------
+    // РЎРћР—Р”РђРќРР• SVG
+    // --------------------------------
 
-    // Создание SVG
     const svg = document.createElementNS(svgNS, "svg");
 
     svg.setAttribute(
@@ -26,45 +81,50 @@ document.addEventListener("DOMContentLoaded", function () {
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     svg.setAttribute("class", "hex-map");
 
-    // Создание 600 ячеек
-    for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < columns; col++) {
+    // Р’СЃРµ СЏС‡РµР№РєРё СЃРЅР°С‡Р°Р»Р° СЃРѕР·РґР°СЋС‚СЃСЏ РІ РїР°РјСЏС‚Рё
+    const fragment = document.createDocumentFragment();
 
-            const centerX =
-                hexWidth / 2 +
-                col * hexWidth +
-                (row % 2) * hexWidth / 2;
+    const renderStart = performance.now();
 
-            const centerY =
-                radius + row * radius * 1.5;
+    cells.forEach(function (cell) {
+        const col = Number(cell.column) - 1;
+        const row = Number(cell.row) - 1;
 
-            const points = [];
+        const centerX =
+            hexWidth / 2 +
+            col * hexWidth +
+            (row % 2) * hexWidth / 2;
 
-            for (let i = 0; i < 6; i++) {
-                const angle = (-90 + i * 60) * Math.PI / 180;
+        const centerY = radius + row * radius * 1.5;
 
-                const x = centerX + radius * Math.cos(angle);
-                const y = centerY + radius * Math.sin(angle);
+        const points = hexOffsets.map(function (offset) {
+            return `${centerX + offset.x},${centerY + offset.y}`;
+        });
 
-                points.push(`${x},${y}`);
-            }
+        const hexagon = document.createElementNS(
+            svgNS,
+            "polygon"
+        );
 
-            const hexagon = document.createElementNS(
-                svgNS,
-                "polygon"
-            );
+        hexagon.setAttribute("points", points.join(" "));
+        hexagon.setAttribute("class", "hex-cell");
+        hexagon.setAttribute("data-cell-id", cell.cell_id);
 
-            hexagon.setAttribute("points", points.join(" "));
-            hexagon.setAttribute("class", "hex-cell");
+        fragment.appendChild(hexagon);
+    });
 
-            svg.appendChild(hexagon);
-        }
-    }
-
+    // Р”РѕР±Р°РІР»СЏРµРј РІСЃРµ 600 СЏС‡РµРµРє РѕРґРЅРѕР№ РѕРїРµСЂР°С†РёРµР№
+    svg.appendChild(fragment);
     map.appendChild(svg);
 
+    console.log(
+        `РћС‚СЂРёСЃРѕРІРєР° РєР°СЂС‚С‹: ${(performance.now() - renderStart).toFixed(1)} РјСЃ`
+    );
+
+    console.log(`РљР°СЂС‚Р° СЃРѕР·РґР°РЅР°: ${cells.length} СЏС‡РµРµРє`);
+
     // --------------------------------
-    // МАСШТАБИРОВАНИЕ И ПЕРЕМЕЩЕНИЕ
+    // РњРђРЎРЁРўРђР‘РР РћР’РђРќРР• Р РџР•Р Р•РњР•Р©Р•РќРР•
     // --------------------------------
 
     const view = {
@@ -84,19 +144,15 @@ document.addEventListener("DOMContentLoaded", function () {
         );
     }
 
-    // Приближение и отдаление колесом мыши
+    // РњР°СЃС€С‚Р°Р±РёСЂРѕРІР°РЅРёРµ РєРѕР»РµСЃРѕРј РјС‹С€Рё
     svg.addEventListener("wheel", function (event) {
         event.preventDefault();
 
         const rect = svg.getBoundingClientRect();
 
-        const mouseX =
-            (event.clientX - rect.left) / rect.width;
+        const mouseX = (event.clientX - rect.left) / rect.width;
+        const mouseY = (event.clientY - rect.top) / rect.height;
 
-        const mouseY =
-            (event.clientY - rect.top) / rect.height;
-
-        // Точка карты под курсором
         const anchorX = view.x + mouseX * view.width;
         const anchorY = view.y + mouseY * view.height;
 
@@ -110,7 +166,6 @@ document.addEventListener("DOMContentLoaded", function () {
         const scale = newWidth / view.width;
         const newHeight = view.height * scale;
 
-        // Сохраняем точку под курсором
         view.x = anchorX - mouseX * newWidth;
         view.y = anchorY - mouseY * newHeight;
 
@@ -120,7 +175,7 @@ document.addEventListener("DOMContentLoaded", function () {
         updateViewBox();
     }, { passive: false });
 
-    // Перемещение карты мышью
+    // РџРµСЂРµРјРµС‰РµРЅРёРµ РєР°СЂС‚С‹ РјС‹С€СЊСЋ
     let dragging = false;
     let startX = 0;
     let startY = 0;
@@ -148,12 +203,10 @@ document.addEventListener("DOMContentLoaded", function () {
         const rect = svg.getBoundingClientRect();
 
         const deltaX =
-            (event.clientX - startX) *
-            (view.width / rect.width);
+            (event.clientX - startX) * (view.width / rect.width);
 
         const deltaY =
-            (event.clientY - startY) *
-            (view.height / rect.height);
+            (event.clientY - startY) * (view.height / rect.height);
 
         view.x = startViewX - deltaX;
         view.y = startViewY - deltaY;
@@ -169,6 +222,4 @@ document.addEventListener("DOMContentLoaded", function () {
     svg.addEventListener("pointerup", stopDragging);
     svg.addEventListener("pointercancel", stopDragging);
     svg.addEventListener("lostpointercapture", stopDragging);
-
-    console.log(`Карта создана: ${columns * rows} ячеек`);
 });

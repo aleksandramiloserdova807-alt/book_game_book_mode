@@ -1,16 +1,23 @@
 
 document.addEventListener("DOMContentLoaded", async function () {
+
     const map = document.getElementById("game-map");
+    const mapFrame = document.getElementById("map-frame");
 
     const radius = 20;
     const hexWidth = Math.sqrt(3) * radius;
     const hexHeight = radius * 2;
+
     const svgNS = "http://www.w3.org/2000/svg";
 
-    // Вершины шестиугольника
+    // --------------------------------
+    // ГЕОМЕТРИЯ ШЕСТИУГОЛЬНИКОВ
+    // --------------------------------
+
     const hexOffsets = [];
 
     for (let i = 0; i < 6; i++) {
+
         const angle = (-90 + i * 60) * Math.PI / 180;
 
         hexOffsets.push({
@@ -19,10 +26,14 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
     }
 
-    // Загрузка клеток
+    // --------------------------------
+    // ЗАГРУЗКА КЛЕТОК
+    // --------------------------------
+
     let cells;
 
     try {
+
         const response = await fetch("/api/cells");
 
         if (!response.ok) {
@@ -38,6 +49,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         cells = data.cells;
 
     } catch (error) {
+
         console.error("Не удалось загрузить карту:", error);
         return;
     }
@@ -47,41 +59,101 @@ document.addEventListener("DOMContentLoaded", async function () {
         return;
     }
 
-    // Размеры карты
-    const columns = Math.max(...cells.map(cell => Number(cell.column)));
-    const rows = Math.max(...cells.map(cell => Number(cell.row)));
+    // --------------------------------
+    // РАЗМЕРЫ КАРТЫ
+    // --------------------------------
 
-    const mapWidth = columns * hexWidth + hexWidth / 2;
-    const mapHeight = (rows - 1) * radius * 1.5 + hexHeight;
+    const columns = Math.max(
+        ...cells.map(cell => Number(cell.column))
+    );
 
-    // Создание SVG
+    const rows = Math.max(
+        ...cells.map(cell => Number(cell.row))
+    );
+
+    const contentWidth =
+        columns * hexWidth + hexWidth / 2;
+
+    const contentHeight =
+        (rows - 1) * radius * 1.5 + hexHeight;
+
+    // Отступы вокруг поля:
+    // шесть шестиугольников с каждой стороны.
+
+    const paddingX = hexWidth * 6;
+    const paddingY = hexHeight * 6;
+
+    const mapWidth = contentWidth + paddingX * 2;
+    const mapHeight = contentHeight + paddingY * 2;
+
+    const frame = document.getElementById("map-frame");
+
+    function updateFrameSize() {
+        const availableWidth = window.innerWidth - 32;
+        const availableHeight = window.innerHeight - 32;
+
+        const scale = Math.min(
+            availableWidth / mapWidth,
+            availableHeight / mapHeight
+        );
+
+        frame.style.width = `${mapWidth * scale}px`;
+        frame.style.height = `${mapHeight * scale}px`;
+    }
+
+    updateFrameSize();
+    window.addEventListener("resize", updateFrameSize);
+
+    // --------------------------------
+    // СОЗДАНИЕ SVG
+    // --------------------------------
+
     const svg = document.createElementNS(svgNS, "svg");
 
-    svg.setAttribute("viewBox", `0 0 ${mapWidth} ${mapHeight}`);
-    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svg.setAttribute(
+        "viewBox",
+        `0 0 ${mapWidth} ${mapHeight}`
+    );
+
+    svg.setAttribute(
+        "preserveAspectRatio",
+        "xMidYMid meet"
+    );
+
     svg.setAttribute("class", "hex-map");
 
     const fragment = document.createDocumentFragment();
 
     cells.forEach(function (cell) {
+
         const col = Number(cell.column) - 1;
         const row = Number(cell.row) - 1;
 
         const centerX =
+            paddingX +
             hexWidth / 2 +
             col * hexWidth +
             (row % 2) * hexWidth / 2;
 
-        const centerY = radius + row * radius * 1.5;
+        const centerY =
+            paddingY +
+            radius +
+            row * radius * 1.5;
 
         const points = hexOffsets.map(function (offset) {
+
             return `${centerX + offset.x},${centerY + offset.y}`;
+
         });
 
-        const hexagon = document.createElementNS(svgNS, "polygon");
+        const hexagon = document.createElementNS(
+            svgNS,
+            "polygon"
+        );
 
         hexagon.setAttribute("points", points.join(" "));
         hexagon.setAttribute("class", "hex-cell");
+
         hexagon.setAttribute("data-cell-id", cell.cell_id);
         hexagon.setAttribute("data-column", cell.column);
         hexagon.setAttribute("data-row", cell.row);
@@ -91,15 +163,107 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
 
     svg.appendChild(fragment);
-    map.appendChild(svg);
+
+    // СЕРАЯ РАМКА ВОКРУГ ИГРОВОЙ ОБЛАСТИ С ОТСТУПАМИ
+
+    const mapBorder = document.createElementNS(svgNS, "rect");
+
+    mapBorder.setAttribute("x", 0);
+    mapBorder.setAttribute("y", 0);
+    mapBorder.setAttribute("width", mapWidth);
+    mapBorder.setAttribute("height", mapHeight);
+    mapBorder.setAttribute("fill", "none");
+    mapBorder.setAttribute("stroke", "#dedede");
+    mapBorder.setAttribute("stroke-width", "1.2");
+    mapBorder.setAttribute("vector-effect", "non-scaling-stroke");
+
+    svg.appendChild(mapBorder);
+
+    mapFrame.appendChild(svg);
 
     console.log(`Карта создана: ${cells.length} ячеек`);
+
+    // --------------------------------
+    // МАСШТАБ И ПОЛОЖЕНИЕ КАРТЫ
+    // --------------------------------
+
+    const view = {
+        x: 0,
+        y: 0,
+        width: mapWidth,
+        height: mapHeight
+    };
+
+    const maxWidth = mapWidth;
+    const minWidth = mapWidth / 12;
+
+    // --------------------------------
+    // ОГРАНИЧЕНИЕ ПЕРЕМЕЩЕНИЯ
+    // --------------------------------
+
+    function limitView() {
+
+        view.x = Math.max(
+            0,
+            Math.min(view.x, mapWidth - view.width)
+        );
+
+        view.y = Math.max(
+            0,
+            Math.min(view.y, mapHeight - view.height)
+        );
+    }
+
+    function updateViewBox() {
+
+        limitView();
+
+        svg.setAttribute(
+            "viewBox",
+            `${view.x} ${view.y} ${view.width} ${view.height}`
+        );
+
+        updatePopupPosition();
+    }
+
+    // --------------------------------
+    // ПЕРЕВОД КООРДИНАТ МЫШИ В SVG
+    // --------------------------------
+
+    function getViewScale() {
+
+        const rect = svg.getBoundingClientRect();
+
+        return Math.min(
+            rect.width / view.width,
+            rect.height / view.height
+        );
+    }
+
+    function mouseToSvg(event) {
+
+        const rect = svg.getBoundingClientRect();
+
+        const scale = getViewScale();
+
+        const renderedWidth = view.width * scale;
+        const renderedHeight = view.height * scale;
+
+        const offsetX = (rect.width - renderedWidth) / 2;
+        const offsetY = (rect.height - renderedHeight) / 2;
+
+        return {
+            x: view.x + (event.clientX - rect.left - offsetX) / scale,
+            y: view.y + (event.clientY - rect.top - offsetY) / scale
+        };
+    }
 
     // --------------------------------
     // ОКОШКО ИНФОРМАЦИИ
     // --------------------------------
 
     const popup = document.createElement("div");
+
     popup.className = "cell-info-popup";
 
     const popupTitle = document.createElement("div");
@@ -115,15 +279,16 @@ document.addEventListener("DOMContentLoaded", async function () {
     popup.appendChild(popupCoordinates);
     popup.appendChild(popupTask);
 
-    map.appendChild(popup);
+    mapFrame.appendChild(popup);
 
     let selectedCell = null;
 
     function updatePopupPosition() {
+
         if (!selectedCell) return;
 
         const cellRect = selectedCell.getBoundingClientRect();
-        const mapRect = map.getBoundingClientRect();
+        const mapRect = mapFrame.getBoundingClientRect();
 
         popup.classList.add("visible");
 
@@ -144,13 +309,13 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         popup.classList.remove("below");
 
-        // Если сверху недостаточно места, показываем снизу
         if (top < 8) {
+
             top = cellRect.bottom + 8 - mapRect.top;
+
             popup.classList.add("below");
         }
 
-        // Не позволяем окошку выходить за границы карты
         left = Math.max(
             8,
             Math.min(left, map.clientWidth - popupWidth - 8)
@@ -166,7 +331,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     function showCellInfo(cell) {
-        popupTitle.textContent = `Клетка № ${cell.dataset.cellId}`;
+
+        popupTitle.textContent =
+            `Клетка № ${cell.dataset.cellId}`;
 
         popupCoordinates.textContent =
             `Столбец: ${cell.dataset.column} · Строка: ${cell.dataset.row}`;
@@ -177,38 +344,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     // --------------------------------
-    // МАСШТАБИРОВАНИЕ
+    // МАСШТАБИРОВАНИЕ КОЛЕСОМ МЫШИ
     // --------------------------------
 
-    const view = {
-        x: 0,
-        y: 0,
-        width: mapWidth,
-        height: mapHeight
-    };
-
-    const minWidth = mapWidth / 12;
-    const maxWidth = mapWidth * 2;
-
-    function updateViewBox() {
-        svg.setAttribute(
-            "viewBox",
-            `${view.x} ${view.y} ${view.width} ${view.height}`
-        );
-
-        updatePopupPosition();
-    }
-
     svg.addEventListener("wheel", function (event) {
+
         event.preventDefault();
 
-        const rect = svg.getBoundingClientRect();
-
-        const mouseX = (event.clientX - rect.left) / rect.width;
-        const mouseY = (event.clientY - rect.top) / rect.height;
-
-        const anchorX = view.x + mouseX * view.width;
-        const anchorY = view.y + mouseY * view.height;
+        const anchor = mouseToSvg(event);
 
         const zoomFactor = event.deltaY < 0 ? 0.9 : 1.1;
 
@@ -220,13 +363,17 @@ document.addEventListener("DOMContentLoaded", async function () {
         const scale = newWidth / view.width;
         const newHeight = view.height * scale;
 
-        view.x = anchorX - mouseX * newWidth;
-        view.y = anchorY - mouseY * newHeight;
+        const relativeX = (anchor.x - view.x) / view.width;
+        const relativeY = (anchor.y - view.y) / view.height;
+
+        view.x = anchor.x - relativeX * newWidth;
+        view.y = anchor.y - relativeY * newHeight;
 
         view.width = newWidth;
         view.height = newHeight;
 
         updateViewBox();
+
     }, { passive: false });
 
     // --------------------------------
@@ -239,10 +386,14 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     let startX = 0;
     let startY = 0;
+
     let startViewX = 0;
     let startViewY = 0;
 
+    let dragScale = 1;
+
     svg.addEventListener("pointerdown", function (event) {
+
         if (event.button !== 0) return;
 
         dragging = true;
@@ -255,11 +406,15 @@ document.addEventListener("DOMContentLoaded", async function () {
         startViewX = view.x;
         startViewY = view.y;
 
+        dragScale = getViewScale();
+
         svg.setPointerCapture(event.pointerId);
+
         svg.classList.add("dragging");
     });
 
     svg.addEventListener("pointermove", function (event) {
+
         if (!dragging) return;
 
         const distance = Math.hypot(
@@ -273,13 +428,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         if (!hasDragged) return;
 
-        const rect = svg.getBoundingClientRect();
-
         const deltaX =
-            (event.clientX - startX) * (view.width / rect.width);
+            (event.clientX - startX) / dragScale;
 
         const deltaY =
-            (event.clientY - startY) * (view.height / rect.height);
+            (event.clientY - startY) / dragScale;
 
         view.x = startViewX - deltaX;
         view.y = startViewY - deltaY;
@@ -288,11 +441,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
 
     function stopDragging() {
+
         if (hasDragged) {
             suppressNextClick = true;
         }
 
         dragging = false;
+
         svg.classList.remove("dragging");
     }
 
@@ -305,8 +460,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     // --------------------------------
 
     svg.addEventListener("click", function (event) {
+
         if (suppressNextClick) {
+
             suppressNextClick = false;
+
             return;
         }
 
@@ -326,6 +484,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
         cell.classList.add("selected");
+
         selectedCell = cell;
 
         const selectedCellData = {
@@ -340,6 +499,14 @@ document.addEventListener("DOMContentLoaded", async function () {
         showCellInfo(cell);
     });
 
-    // Обновление положения окошка при изменении размера окна
-    window.addEventListener("resize", updatePopupPosition);
+    // --------------------------------
+    // ИЗМЕНЕНИЕ РАЗМЕРА ОКНА
+    // --------------------------------
+
+    window.addEventListener("resize", function () {
+
+        updatePopupPosition();
+
+    });
+
 });

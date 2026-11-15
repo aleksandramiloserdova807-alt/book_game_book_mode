@@ -1,5 +1,6 @@
 import os
 import time
+import requests
 
 from datetime import datetime
 from pathlib import Path
@@ -49,8 +50,11 @@ def connect_to_google_sheets():
         try:
 
             client = gspread.service_account(
-                filename=str(CREDENTIALS_FILE)
-            )
+            filename=str(CREDENTIALS_FILE)
+)
+
+            # Тайм-аут: 10 секунд на подключение, 30 секунд на ответ
+            client.set_timeout((10, 30))
 
             return client.open_by_key(SPREADSHEET_ID)
 
@@ -68,6 +72,33 @@ def connect_to_google_sheets():
 
     raise last_error
 
+# --------------------------------
+# ЧТЕНИЕ GOOGLE SHEETS С ПОВТОРАМИ
+# --------------------------------
+
+def get_all_records_with_retry(worksheet):
+
+    last_error = None
+
+    for attempt in range(1, CONNECTION_ATTEMPTS + 1):
+
+        try:
+
+            return worksheet.get_all_records()
+
+        except requests.exceptions.RequestException as error:
+
+            last_error = error
+
+            print(
+                f"Ошибка чтения листа «{worksheet.title}» "
+                f"(попытка {attempt}/{CONNECTION_ATTEMPTS}): {error}"
+            )
+
+            if attempt < CONNECTION_ATTEMPTS:
+                time.sleep(CONNECTION_RETRY_DELAY * attempt)
+
+    raise last_error
 
 # --------------------------------
 # ПОЛУЧЕНИЕ ЛИСТОВ
@@ -129,6 +160,60 @@ def normalize_player_id(value):
 
     return result
 
+# --------------------------------
+# ПОИСК ПЕРВОЙ СВОБОДНОЙ СТРОКИ
+# --------------------------------
+
+def find_first_free_row(worksheet, required_empty_headers):
+
+    values = worksheet.get_all_values()
+
+    if not values:
+        raise ValueError(
+            f"Лист «{worksheet.title}» не содержит заголовков."
+        )
+
+    headers = values[0]
+
+    columns = {}
+
+    for header in required_empty_headers:
+
+        if header not in headers:
+            raise ValueError(
+                f"В листе «{worksheet.title}» "
+                f"отсутствует столбец «{header}»."
+            )
+
+        columns[header] = headers.index(header)
+
+    # Ищем первую строку, в которой все ключевые поля пусты.
+    # Значения FALSE в других столбцах не учитываются.
+
+    for row_number, row in enumerate(values[1:], start=2):
+
+        is_free = True
+
+        for header, column_index in columns.items():
+
+            value = (
+                row[column_index]
+                if column_index < len(row)
+                else ""
+            )
+
+            if str(value).strip():
+                is_free = False
+                break
+
+        if is_free:
+            return row_number
+
+    # Если свободной строки среди существующих записей нет,
+    # используем следующую после последней строки с данными.
+
+    return len(values) + 1
+
 
 # --------------------------------
 # ПОИСК МАСТЕРА ПО ЛОГИНУ И ПАРОЛЮ
@@ -139,7 +224,7 @@ def find_master_by_credentials(login, password):
     worksheets = get_worksheets()
     worksheet = worksheets["players"]
 
-    records = worksheet.get_all_records()
+    records = get_all_records_with_retry(worksheet)
 
     for record in records:
 
@@ -338,13 +423,50 @@ def load_player_tasks(player_id):
 
     worksheets = get_worksheets()
 
-    records = worksheets["tasks"].get_all_records()
-
     player_id = normalize_player_id(player_id)
 
-    tasks = []
+    # Получаем текущий маршрут игрока из листа «Пути»
 
-    for record in records:
+    player_path = load_player_path(player_id)
+
+    path = player_path["path"]
+
+    if not path:
+        return []
+
+    # Cell_ID в порядке прохождения маршрута
+
+    route_cell_ids = [
+        str(item["cell_id"]).strip()
+        for item in path
+        if str(item["cell_id"]).strip()
+    ]
+
+    # Загружаем задания и тексты клеток
+
+    task_records = worksheets["tasks"].get_all_records()
+    cell_records = worksheets["cells"].get_all_records()
+
+    # Создаём словарь текстов заданий по Cell_ID
+
+    cell_tasks = {}
+
+    for record in cell_records:
+
+        cell_id = normalize_player_id(
+            record.get("Cell_ID", "")
+        )
+
+        if cell_id:
+            cell_tasks[cell_id] = str(
+                record.get("Задание", "")
+            ).strip()
+
+    # Создаём словарь записей заданий игрока
+
+    player_tasks = {}
+
+    for record in task_records:
 
         task_player_id = normalize_player_id(
             record.get("Player_ID", "")
@@ -353,9 +475,23 @@ def load_player_tasks(player_id):
         if task_player_id != player_id:
             continue
 
-        cell_id = str(
+        cell_id = normalize_player_id(
             record.get("Cell_ID", "")
-        ).strip()
+        )
+
+        if cell_id:
+            player_tasks[cell_id] = record
+
+    # Формируем список строго по маршруту из листа «Пути»
+
+    tasks = []
+
+    for cell_id in route_cell_ids:
+
+        record = player_tasks.get(cell_id)
+
+        if record is None:
+            continue
 
         task_url = str(
             record.get("Ссылка на задание", "")
@@ -388,6 +524,7 @@ def load_player_tasks(player_id):
 
         tasks.append({
             "cell_id": cell_id,
+            "task_text": cell_tasks.get(cell_id, ""),
             "task_url": task_url,
             "accepted_date": accepted_date,
             "submitted_date": submitted_date,
@@ -397,6 +534,8 @@ def load_player_tasks(player_id):
         })
 
     return tasks
+
+
 
 
 # --------------------------------
@@ -655,8 +794,16 @@ def append_player_path_point(player_id, cell_id):
         for header in headers
     ]
 
-    worksheet.append_row(
-        row,
+    # Находим первую свободную строку по ключевым полям.
+    target_row = find_first_free_row(
+        worksheet,
+        ["Player_ID", "Cell_ID"]
+    )
+
+    # Записываем данные непосредственно в найденную строку.
+    worksheet.update(
+        f"A{target_row}",
+        [row],
         value_input_option="USER_ENTERED"
     )
 
@@ -930,9 +1077,9 @@ def create_player_task(player_id, cell_id):
             record.get("Player_ID", "")
         )
 
-        record_cell_id = str(
+        record_cell_id = normalize_player_id(
             record.get("Cell_ID", "")
-        ).strip()
+        )
 
         if (
             record_player_id == player_id
@@ -956,7 +1103,7 @@ def create_player_task(player_id, cell_id):
                 "row": row_number
             }
 
-    # Создаём новую запись по названиям столбцов
+    # Создаём новую запись
 
     row_data = {
         "Player_ID": player_id,
@@ -973,8 +1120,17 @@ def create_player_task(player_id, cell_id):
         for header in headers
     ]
 
-    worksheet.append_row(
-        row,
+    # Ищем свободную строку по Player_ID и Cell_ID.
+    # FALSE в служебных столбцах не мешают поиску.
+
+    target_row = find_first_free_row(
+        worksheet,
+        ["Player_ID", "Cell_ID"]
+    )
+
+    worksheet.update(
+        f"A{target_row}",
+        [row],
         value_input_option="USER_ENTERED"
     )
 
@@ -983,7 +1139,7 @@ def create_player_task(player_id, cell_id):
         "player_id": player_id,
         "cell_id": cell_id,
         "task": task_text,
-        "row": len(records) + 2
+        "row": target_row
     }
 
 

@@ -643,3 +643,559 @@ body.login-page {
         background: #f5f5f5;
         border-color: #aaaaaa;
     }
+
+
+/* ========================================
+   ПРОФИЛЬ ИГРОКА
+======================================== */
+
+#player-profile-button {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 54px;
+    padding: 7px 12px;
+    background: #ffffff;
+    border: 1px solid #dedede;
+    border-radius: 0 6px 6px 6px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+    #player-profile-button:hover {
+        background: #f8f8f8;
+    }
+
+.player-profile-name {
+    color: #333333;
+    font-size: 14px;
+}
+
+/* Аватар игрока */
+
+.player-profile-avatar {
+    display: block;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border: 1px solid #777777;
+    border-radius: 50%;
+    background: #ffffff;
+}
+
+/* Окно профиля */
+
+#player-profile-window {
+    display: none;
+    position: absolute;
+    top: 54px;
+    left: 0;
+    z-index: 20;
+    width: 420px;
+    max-width: 100%;
+    height: auto;
+    max-height: calc(100vh - 70px);
+    min-height: 220px;
+    background: #ffffff;
+    border: 1px solid #dedede;
+    border-radius: 6px;
+    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.10);
+    overflow: hidden;
+}
+
+    #player-profile-window.visible {
+        display: flex;
+        flex-direction: column;
+    }
+
+/* Основные вкладки */
+
+.player-profile-tabs {
+    display: flex;
+    flex-shrink: 0;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.player-profile-main-tab {
+    flex: 1;
+    padding: 14px;
+    background: #ffffff;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #777777;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+    .player-profile-main-tab:hover {
+        background: #f8f8f8;
+        color: #333333;
+    }
+
+    .player-profile-main-tab.active {
+        color: #333333;
+        border-bottom-color: #333333;
+    }
+
+/* Панели профиля */
+
+.player-profile-main-panel {
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 14px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #cccccc transparent;
+}
+
+    .player-profile-main-panel.active {
+        display: block;
+    }
+
+/* Список мастеров */
+
+.player-master-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.player-master-avatar {
+    display: block;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    border: 1px solid #777777;
+    border-radius: 50%;
+    background: #ffffff;
+}
+
+/* Список заданий участника */
+
+.player-task-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.player-task-item {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 12px 2px;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.player-task-title {
+    color: #333333;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.player-task-link {
+    width: fit-content;
+    color: #555555;
+    font-size: 13px;
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+}
+
+    .player-task-link:hover {
+        color: #111111;
+    }
+
+.player-task-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: #777777;
+    font-size: 12px;
+}
+
+.player-task-status {
+    width: fit-content;
+    padding: 4px 8px;
+    border: 1px solid #dedede;
+    border-radius: 4px;
+    color: #555555;
+    font-size: 12px;
+}
+
+    .player-task-status.in-progress {
+        color: #555555;
+    }
+
+    .player-task-status.pending {
+        color: #a66a00;
+        border-color: #e6d2a8;
+    }
+
+    .player-task-status.completed {
+        color: #39734a;
+        border-color: #b9d4c0;
+    }
+
+/* Сообщения */
+
+#player-profile-window .player-list-message,
+#player-profile-window .player-list-empty,
+#player-profile-window .task-list-message {
+    padding: 16px 2px;
+    color: #777777;
+    font-size: 13px;
+}
+
+/* Прокрутка */
+
+.player-profile-main-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.player-profile-main-panel::-webkit-scrollbar-thumb {
+    background: #cccccc;
+    border-radius: 4px;
+}
+
+/* Кнопка выхода */
+
+.player-profile-footer {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    border-top: 1px solid #dedede;
+    background: #ffffff;
+}
+
+#player-logout-button {
+    width: 100%;
+    height: 36px;
+    background: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 5px;
+    color: #444444;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+    #player-logout-button:hover {
+        background: #f5f5f5;
+        border-color: #aaaaaa;
+    }
+
+/* Адаптация */
+
+@media (max-width: 480px) {
+
+    #player-profile-window {
+        width: 100%;
+    }
+
+    .player-profile-main-tab {
+        padding: 11px 8px;
+        font-size: 13px;
+    }
+}
+
+/* Иконки мастеров в профиле игрока */
+
+.player-master-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border: 1px solid #333333;
+    border-radius: 50%;
+    background: #333333 !important;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+/* ========================================
+   ИКОНКА ИГРОКА
+======================================== */
+
+.player-profile-avatar {
+    display: block;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border: 1px solid #999999;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+/* ========================================
+   ОКНО ВЫБОРА ЦВЕТА
+======================================== */
+
+#player-color-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+    #player-color-overlay.visible {
+        display: flex;
+    }
+
+#player-color-window {
+    width: 100%;
+    max-width: 390px;
+    padding: 22px;
+    background: #ffffff;
+    border: 1px solid #dedede;
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.16);
+}
+
+.player-color-title {
+    margin-bottom: 8px;
+    color: #333333;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.player-color-description {
+    margin-bottom: 20px;
+    color: #777777;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* Палитра */
+
+#player-color-palette {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 13px;
+    justify-items: center;
+    padding: 8px 0 18px;
+}
+
+.player-color-option {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.12s ease;
+}
+
+    .player-color-option:hover {
+        transform: scale(1.12);
+    }
+
+    .player-color-option.selected {
+        outline: 2px solid #333333;
+        outline-offset: 3px;
+    }
+
+#player-color-error {
+    min-height: 18px;
+    margin-bottom: 8px;
+    color: #d32f2f;
+    font-size: 12px;
+}
+
+.player-color-actions {
+    display: flex;
+    gap: 10px;
+}
+
+    .player-color-actions button {
+        flex: 1;
+        height: 38px;
+        border: 1px solid #cccccc;
+        border-radius: 5px;
+        background: #ffffff;
+        color: #444444;
+        font-family: inherit;
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+#player-color-save {
+    background: #333333;
+    border-color: #333333;
+    color: #ffffff;
+}
+
+    #player-color-save:hover:not(:disabled) {
+        background: #222222;
+    }
+
+    #player-color-save:disabled {
+        opacity: 0.45;
+        cursor: default;
+    }
+
+#player-color-cancel:hover {
+    background: #f5f5f5;
+}
+
+@media (max-width: 380px) {
+    #player-color-window {
+        padding: 18px;
+    }
+
+    #player-color-palette {
+        gap: 11px;
+    }
+
+    .player-color-option {
+        width: 30px;
+        height: 30px;
+    }
+}
+
+/* ========================================
+   КЛЕТКИ МАРШРУТА ИГРОКА
+======================================== */
+
+.hex-cell {
+    fill: #ffffff;
+    cursor: pointer;
+}
+
+    .hex-cell.inactive-cell {
+        fill: #bdbdbd;
+    }
+
+    .hex-cell.current-cell {
+        fill: #ffffff !important;
+    }
+
+/* ========================================
+   ТЕКУЩЕЕ ЗАДАНИЕ ИГРОКА
+======================================== */
+
+#player-task-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+    #player-task-overlay.visible {
+        display: flex;
+    }
+
+#player-task-window {
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100vh - 32px);
+    padding: 24px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #dedede;
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.16);
+}
+
+.player-task-title {
+    margin-bottom: 18px;
+    color: #333333;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+#player-current-task-text {
+    margin-bottom: 22px;
+    color: #444444;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+#player-task-submit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+    #player-task-submit-form label {
+        color: #555555;
+        font-size: 13px;
+    }
+
+#player-task-url {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid #cccccc;
+    border-radius: 5px;
+    outline: none;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+    #player-task-url:focus {
+        border-color: #777777;
+    }
+
+#player-task-error {
+    min-height: 18px;
+    color: #d32f2f;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#player-task-submit-button {
+    width: 100%;
+    height: 42px;
+    margin-top: 4px;
+    background: #333333;
+    border: none;
+    border-radius: 5px;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+    #player-task-submit-button:hover:not(:disabled) {
+        background: #222222;
+    }
+
+    #player-task-submit-button:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+#player-task-submitted-message {
+    padding: 12px;
+    border: 1px solid #b9d4c0;
+    border-radius: 5px;
+    color: #39734a;
+    background: #f5faf6;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+    #player-task-window {
+        padding: 20px;
+    }
+}

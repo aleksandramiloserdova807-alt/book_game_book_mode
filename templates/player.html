@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Игра КР</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <main id="game-map">
+
+        <div id="map-frame"></div>
+
+        <!-- Кнопка профиля игрока -->
+        <button id="player-profile-button" type="button">
+
+            <span class="player-profile-name">
+                {{ session.get('player_name', 'Игрок') }}
+            </span>
+
+            <span class="player-profile-avatar"></span>
+
+        </button>
+
+        <!-- Окно текущего задания -->
+        <div id="player-task-overlay" hidden>
+
+            <div id="player-task-window">
+
+                <div class="player-task-title">
+                    Текущее задание
+                </div>
+
+                <div id="player-current-task-text">
+                    Загрузка задания...
+                </div>
+
+                <div id="player-task-submit-form">
+
+                    <label for="player-task-url">
+                        Ссылка на выполненное задание
+                    </label>
+
+                    <input type="url"
+                           id="player-task-url"
+                           placeholder="https://">
+
+                    <div id="player-task-error"></div>
+
+                    <button id="player-task-submit-button"
+                            type="button">
+                        Отправить
+                    </button>
+
+                </div>
+
+                <div id="player-task-submitted-message" hidden>
+                    Задание отправлено и ожидает проверки.
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Окно профиля -->
+        <div id="player-profile-window">
+
+            <!-- Основные вкладки -->
+            <div class="player-profile-tabs">
+
+                <button class="player-profile-main-tab active"
+                        data-main-tab="masters"
+                        type="button">
+                    Мастера
+                </button>
+
+                <button class="player-profile-main-tab"
+                        data-main-tab="tasks"
+                        type="button">
+                    Задания
+                </button>
+
+            </div>
+
+            <!-- Список мастеров -->
+            <div class="player-profile-main-panel active"
+                 data-main-panel="masters">
+
+                <div class="player-list-message">
+                    Загрузка списка мастеров...
+                </div>
+
+            </div>
+
+            <!-- Список заданий -->
+            <div class="player-profile-main-panel"
+                 data-main-panel="tasks">
+
+                <div class="player-task-list">
+
+                    <div class="task-list-message">
+                        Загрузка заданий...
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Выход из профиля -->
+            <div class="player-profile-footer">
+
+                <button id="player-logout-button" type="button">
+                    Выйти
+                </button>
+
+            </div>
+
+        </div>
+
+        <!-- Окно выбора цвета игрока -->
+        <div id="player-color-overlay">
+
+            <div id="player-color-window">
+
+                <div class="player-color-title">
+                    Выберите свой цвет
+                </div>
+
+                <div class="player-color-description">
+                    Этот цвет будет обозначать вас на игровой карте.
+                </div>
+
+                <div id="player-color-palette"></div>
+
+                <div id="player-color-error"></div>
+
+                <div class="player-color-actions">
+
+                    <button id="player-color-cancel" type="button">
+                        Отмена
+                    </button>
+
+                    <button id="player-color-save"
+                            type="button"
+                            disabled>
+                        Сохранить
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='js/player.js') }}"></script>
+
+</body>
+</html>

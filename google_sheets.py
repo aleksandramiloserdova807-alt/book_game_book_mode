@@ -1,8 +1,9 @@
 import os
+import time
 
+from datetime import datetime
 from pathlib import Path
 from functools import lru_cache
-import time
 
 import gspread
 
@@ -57,6 +58,11 @@ def connect_to_google_sheets():
 
             last_error = error
 
+            print(
+                f"Ошибка подключения к Google Sheets "
+                f"(попытка {attempt}/{CONNECTION_ATTEMPTS}): {error}"
+            )
+
             if attempt < CONNECTION_ATTEMPTS:
                 time.sleep(CONNECTION_RETRY_DELAY * attempt)
 
@@ -73,10 +79,11 @@ def get_worksheets():
     spreadsheet = connect_to_google_sheets()
 
     return {
-        "players": spreadsheet.worksheet("Игроки"),
-        "cells": spreadsheet.worksheet("Клетки"),
-        "game_data": spreadsheet.worksheet("Игровые данные"),
-        "tasks": spreadsheet.worksheet("Задания")
+       "players": spreadsheet.worksheet("Игроки"),
+       "cells": spreadsheet.worksheet("Клетки"),
+       "game_data": spreadsheet.worksheet("Игровые данные"),
+       "tasks": spreadsheet.worksheet("Задания"),
+       "paths": spreadsheet.worksheet("Пути")
     }
 
 
@@ -279,3 +286,808 @@ def load_cells():
         )
 
     return cells
+
+
+# --------------------------------
+# ЗАГРУЗКА СПИСКА МАСТЕРОВ
+# --------------------------------
+
+def load_player_masters():
+
+    worksheets = get_worksheets()
+
+    records = worksheets["players"].get_all_records()
+
+    masters = []
+
+    for record in records:
+
+        if not is_master_flag(record.get("Мастер", False)):
+            continue
+
+        player_id = normalize_player_id(
+            record.get("Player_ID", "")
+        )
+
+        if not player_id:
+            continue
+
+        name = str(
+            record.get("Имя игрока", "")
+        ).strip()
+
+        if not name:
+            name = f"Мастер {player_id}"
+
+        masters.append({
+            "player_id": player_id,
+            "name": name,
+            "color": str(
+                record.get("Цвет игрока", "")
+            ).strip() or "#ffffff"
+        })
+
+    return masters
+
+
+# --------------------------------
+# ЗАГРУЗКА ЛИЧНЫХ ЗАДАНИЙ УЧАСТНИКА
+# --------------------------------
+
+def load_player_tasks(player_id):
+
+    worksheets = get_worksheets()
+
+    records = worksheets["tasks"].get_all_records()
+
+    player_id = normalize_player_id(player_id)
+
+    tasks = []
+
+    for record in records:
+
+        task_player_id = normalize_player_id(
+            record.get("Player_ID", "")
+        )
+
+        if task_player_id != player_id:
+            continue
+
+        cell_id = str(
+            record.get("Cell_ID", "")
+        ).strip()
+
+        task_url = str(
+            record.get("Ссылка на задание", "")
+        ).strip()
+
+        accepted_date = str(
+            record.get("Дата принятия", "")
+        ).strip()
+
+        submitted_date = str(
+            record.get("Дата сдачи", "")
+        ).strip()
+
+        is_submitted = is_true_flag(
+            record.get("Сдано", False)
+        )
+
+        is_accepted = is_true_flag(
+            record.get("Принято", False)
+        )
+
+        if is_submitted and is_accepted:
+            status = "Выполнено"
+
+        elif is_submitted:
+            status = "Ожидает проверки"
+
+        else:
+            status = "В работе"
+
+        tasks.append({
+            "cell_id": cell_id,
+            "task_url": task_url,
+            "accepted_date": accepted_date,
+            "submitted_date": submitted_date,
+            "submitted": is_submitted,
+            "accepted": is_accepted,
+            "status": status
+        })
+
+    return tasks
+
+
+# --------------------------------
+# ПОИСК ИГРОКА ПО ЛОГИНУ И ПАРОЛЮ
+# --------------------------------
+
+def find_player_by_credentials(login, password):
+
+    worksheets = get_worksheets()
+    records = worksheets["players"].get_all_records()
+
+    for record in records:
+
+        player_login = str(
+            record.get("Логин", "")
+        ).strip()
+
+        player_password = str(
+            record.get("Пароль", "")
+        )
+
+        if (
+            player_login == login
+            and player_password == password
+            and not is_master_flag(record.get("Мастер", False))
+        ):
+
+            return {
+                "player_id": normalize_player_id(
+                    record.get("Player_ID", "")
+                ),
+                "name": str(
+                    record.get("Имя игрока", "")
+                ).strip()
+            }
+
+    return None
+
+# --------------------------------
+# ПАЛИТРА ЦВЕТОВ ИГРОКА
+# --------------------------------
+
+PLAYER_COLORS = [
+    "#F44336", "#E91E63", "#9C27B0", "#673AB7",
+    "#3F51B5", "#2196F3", "#03A9F4", "#00BCD4",
+    "#009688", "#4CAF50", "#8BC34A", "#CDDC39",
+    "#FFEB3B", "#FFC107", "#FF9800", "#FF5722",
+    "#795548", "#9E9E9E", "#607D8B", "#263238",
+    "#B71C1C", "#880E4F", "#4A148C", "#311B92",
+    "#1A237E", "#0D47A1", "#01579B", "#006064",
+    "#004D40", "#1B5E20", "#33691E", "#827717",
+    "#F9A825", "#E65100", "#BF360C", "#455A64"
+]
+
+
+# --------------------------------
+# ПОЛУЧЕНИЕ ЦВЕТА ИГРОКА
+# --------------------------------
+
+
+def load_player_color(player_id):
+
+    worksheet = get_worksheets()["players"]
+
+    normalized_id = normalize_player_id(player_id)
+
+    records = worksheet.get_all_records()
+
+    for record in records:
+
+        record_player_id = normalize_player_id(
+            record.get("Player_ID", "")
+        )
+
+        if record_player_id == normalized_id:
+
+            return str(
+                record.get("Цвет игрока", "") or ""
+            ).strip()
+
+    raise ValueError(
+        f"Игрок с Player_ID {normalized_id} не найден."
+    )
+
+
+
+# --------------------------------
+# СОХРАНЕНИЕ ЦВЕТА ИГРОКА
+# --------------------------------
+
+def save_player_color(player_id, color):
+
+    color = str(color).strip().upper()
+
+    if color not in PLAYER_COLORS:
+        raise ValueError("Недопустимый цвет.")
+
+    worksheet = get_worksheets()["players"]
+
+    headers = worksheet.row_values(1)
+
+    try:
+        player_id_column = headers.index("Player_ID") + 1
+        color_column = headers.index("Цвет игрока") + 1
+    except ValueError:
+        raise ValueError(
+            "В листе «Игроки» отсутствует столбец Player_ID "
+            "или Цвет игрока."
+        )
+
+    player_ids = worksheet.col_values(player_id_column)
+
+    normalized_id = normalize_player_id(player_id)
+
+    for row_number, value in enumerate(player_ids[1:], start=2):
+
+        if normalize_player_id(value) == normalized_id:
+
+            worksheet.update_cell(
+                row_number,
+                color_column,
+                color
+            )
+
+            return color
+
+    raise ValueError(
+        f"Игрок с Player_ID {normalized_id} не найден."
+    )
+
+
+# --------------------------------
+# ЗАГРУЗКА МАРШРУТА ИГРОКА
+# --------------------------------
+
+def load_player_path(player_id):
+
+    worksheet = get_worksheets()["paths"]
+
+    records = worksheet.get_all_records()
+
+    player_id = normalize_player_id(player_id)
+
+    path = []
+
+    for record in records:
+
+        record_player_id = normalize_player_id(
+            record.get("Player_ID", "")
+        )
+
+        if record_player_id != player_id:
+            continue
+
+        path.append({
+            "order": int(record.get("Порядок", 0)),
+            "cell_id": str(record.get("Cell_ID", "")).strip(),
+            "date": str(record.get("Дата перехода", "")).strip()
+        })
+
+    path.sort(key=lambda item: item["order"])
+
+    current_cell_id = (
+        path[-1]["cell_id"] if path else None
+    )
+
+    return {
+        "path": path,
+        "current_cell_id": current_cell_id,
+        "visited_cells": [
+            item["cell_id"] for item in path
+        ]
+    }
+
+
+# --------------------------------
+# ПРОВЕРКА СОСЕДСТВА КЛЕТОК
+# --------------------------------
+
+def are_cells_neighbors(current_cell, target_cell):
+
+    current_column = int(current_cell["column"])
+    current_row = int(current_cell["row"])
+
+    target_column = int(target_cell["column"])
+    target_row = int(target_cell["row"])
+
+    row_difference = target_row - current_row
+    column_difference = target_column - current_column
+
+    # Соседство в пределах одной строки
+
+    if row_difference == 0:
+        return abs(column_difference) == 1
+
+    # Соседство по диагонали
+
+    if abs(row_difference) != 1:
+        return False
+
+    # Нечётная строка (нумерация с 1):
+    # соседние строки имеют клетки с колонками c и c-1.
+
+    if current_row % 2 == 1:
+        return column_difference in (0, -1)
+
+    # Чётная строка:
+    # соседние строки имеют клетки с колонками c и c+1.
+
+    return column_difference in (0, 1)
+
+
+# --------------------------------
+# ПЕРЕХОД ИГРОКА НА НОВУЮ КЛЕТКУ
+# --------------------------------
+
+
+# --------------------------------
+# ЗАПИСЬ ТОЧКИ В МАРШРУТ ИГРОКА
+# --------------------------------
+
+def append_player_path_point(player_id, cell_id):
+
+    worksheet = get_worksheets()["paths"]
+    headers = worksheet.row_values(1)
+
+    required_headers = [
+        "Player_ID",
+        "Порядок",
+        "Cell_ID",
+        "Дата перехода"
+    ]
+
+    for header in required_headers:
+        if header not in headers:
+            raise ValueError(
+                f"В листе «Пути» отсутствует столбец «{header}»."
+            )
+
+    player_path = load_player_path(player_id)
+    next_order = len(player_path["path"]) + 1
+
+    transition_date = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+    row_data = {
+        "Player_ID": player_id,
+        "Порядок": next_order,
+        "Cell_ID": cell_id,
+        "Дата перехода": transition_date
+    }
+
+    row = [
+        row_data.get(header, "")
+        for header in headers
+    ]
+
+    worksheet.append_row(
+        row,
+        value_input_option="USER_ENTERED"
+    )
+
+    return {
+        "order": next_order,
+        "date": transition_date
+    }
+
+
+# --------------------------------
+# ВЫБОР ПЕРВОЙ КЛЕТКИ ИГРОКОМ
+# --------------------------------
+
+def select_player_start_cell(player_id, cell_id):
+
+    player_id = normalize_player_id(player_id)
+    cell_id = str(cell_id).strip()
+
+    if not player_id:
+        raise ValueError("Не указан Player_ID.")
+
+    if not cell_id:
+        raise ValueError("Не указана клетка.")
+
+    player_path = load_player_path(player_id)
+
+    if player_path["current_cell_id"] is not None:
+        raise ValueError(
+            "Стартовая клетка уже выбрана."
+        )
+
+    cells = load_cells()
+
+    target_cell = next(
+        (
+            cell for cell in cells
+            if str(cell["cell_id"]).strip() == cell_id
+        ),
+        None
+    )
+
+    if target_cell is None:
+        raise ValueError("Выбранная клетка не найдена.")
+
+    # Создаём задание для стартовой клетки
+
+    task = create_player_task(player_id, cell_id)
+
+    # Записываем стартовую точку в маршрут
+
+    path_point = append_player_path_point(
+        player_id,
+        cell_id
+    )
+
+    return {
+        "success": True,
+        "cell_id": cell_id,
+        "task": task["task"],
+        "path_order": path_point["order"],
+        "path_date": path_point["date"]
+    }
+
+
+# --------------------------------
+# ПЕРЕХОД ИГРОКА НА НОВУЮ КЛЕТКУ
+# --------------------------------
+
+def move_player_to_cell(player_id, target_cell_id):
+
+    player_id = normalize_player_id(player_id)
+    target_cell_id = str(target_cell_id).strip()
+
+    if not player_id:
+        raise ValueError("Не указан Player_ID.")
+
+    if not target_cell_id:
+        raise ValueError("Не указана клетка.")
+
+    # Получаем текущий маршрут
+
+    player_path = load_player_path(player_id)
+
+    current_cell_id = player_path["current_cell_id"]
+
+    if current_cell_id is None:
+        raise ValueError(
+            "Сначала выберите стартовую клетку."
+        )
+
+    # Проверяем, отправлено ли задание текущей клетки
+
+    task_records = get_worksheets()["tasks"].get_all_records()
+
+    current_task = None
+
+    for record in task_records:
+
+        record_player_id = normalize_player_id(
+            record.get("Player_ID", "")
+        )
+
+        record_cell_id = str(
+            record.get("Cell_ID", "")
+        ).strip()
+
+        if (
+            record_player_id == player_id
+            and record_cell_id == current_cell_id
+        ):
+            current_task = record
+            break
+
+    if current_task is None:
+        raise ValueError(
+            "Для текущей клетки не найдено задание."
+        )
+
+    if not is_true_flag(current_task.get("Сдано", False)):
+        raise ValueError(
+            "Сначала отправьте задание текущей клетки."
+        )
+
+    # Запрещаем повторное посещение
+
+    if target_cell_id in player_path["visited_cells"]:
+        raise ValueError(
+            "Эта клетка уже была посещена."
+        )
+
+    # Находим текущую и выбранную клетки
+
+    cells = load_cells()
+
+    current_cell = None
+    target_cell = None
+
+    for cell in cells:
+
+        cell_id = str(cell["cell_id"]).strip()
+
+        if cell_id == current_cell_id:
+            current_cell = cell
+
+        if cell_id == target_cell_id:
+            target_cell = cell
+
+    if current_cell is None:
+        raise ValueError(
+            "Текущая клетка игрока не найдена."
+        )
+
+    if target_cell is None:
+        raise ValueError(
+            "Выбранная клетка не найдена."
+        )
+
+    # Проверяем соседство
+
+    if not are_cells_neighbors(current_cell, target_cell):
+        raise ValueError(
+            "Можно переходить только на соседнюю клетку."
+        )
+
+    # Записываем переход в лист «Пути»
+
+    path_point = append_player_path_point(
+        player_id,
+        target_cell_id
+    )
+
+    # Создаём новое задание для выбранной клетки
+
+    task = create_player_task(
+        player_id,
+        target_cell_id
+    )
+
+    return {
+        "success": True,
+        "player_id": player_id,
+        "cell_id": target_cell_id,
+        "order": path_point["order"],
+        "date": path_point["date"],
+        "task": task["task"]
+    }
+
+
+# --------------------------------
+# ПОЛУЧЕНИЕ ЗАДАНИЯ ПО CELL_ID
+# --------------------------------
+
+def load_cell_task(cell_id):
+
+    worksheet = get_worksheets()["cells"]
+    records = worksheet.get_all_records()
+
+    target_cell_id = str(cell_id).strip()
+
+    for record in records:
+
+        record_cell_id = str(
+            record.get("Cell_ID", "")
+        ).strip()
+
+        if record_cell_id == target_cell_id:
+
+            task_text = str(
+                record.get("Задание", "")
+            ).strip()
+
+            if not task_text:
+                raise ValueError(
+                    f"Для клетки {target_cell_id} не задан текст задания."
+                )
+
+            return task_text
+
+    raise ValueError(
+        f"Клетка {target_cell_id} не найдена."
+    )
+
+
+# --------------------------------
+# СОЗДАНИЕ ЗАДАНИЯ ИГРОКУ ПРИ ВЫБОРЕ КЛЕТКИ
+# --------------------------------
+
+def create_player_task(player_id, cell_id):
+
+    player_id = normalize_player_id(player_id)
+    cell_id = str(cell_id).strip()
+
+    if not player_id:
+        raise ValueError("Не указан Player_ID.")
+
+    if not cell_id:
+        raise ValueError("Не указан Cell_ID.")
+
+    # Получаем текст задания из листа «Клетки»
+
+    task_text = load_cell_task(cell_id)
+
+    worksheet = get_worksheets()["tasks"]
+
+    headers = worksheet.row_values(1)
+
+    required_headers = [
+        "Player_ID",
+        "Cell_ID",
+        "Ссылка на задание",
+        "Дата принятия",
+        "Дата сдачи",
+        "Сдано",
+        "Принято"
+    ]
+
+    for header in required_headers:
+
+        if header not in headers:
+            raise ValueError(
+                f"В листе «Задания» отсутствует столбец «{header}»."
+            )
+
+    records = worksheet.get_all_records()
+
+    # Проверяем, не создавалось ли уже такое задание
+
+    for row_number, record in enumerate(records, start=2):
+
+        record_player_id = normalize_player_id(
+            record.get("Player_ID", "")
+        )
+
+        record_cell_id = str(
+            record.get("Cell_ID", "")
+        ).strip()
+
+        if (
+            record_player_id == player_id
+            and record_cell_id == cell_id
+        ):
+
+            is_submitted = is_true_flag(
+                record.get("Сдано", False)
+            )
+
+            if is_submitted:
+                raise ValueError(
+                    "Задание по этой клетке уже отправлено."
+                )
+
+            return {
+                "success": True,
+                "player_id": player_id,
+                "cell_id": cell_id,
+                "task": task_text,
+                "row": row_number
+            }
+
+    # Создаём новую запись по названиям столбцов
+
+    row_data = {
+        "Player_ID": player_id,
+        "Cell_ID": cell_id,
+        "Ссылка на задание": "",
+        "Дата принятия": "",
+        "Дата сдачи": "",
+        "Сдано": "FALSE",
+        "Принято": "FALSE"
+    }
+
+    row = [
+        row_data.get(header, "")
+        for header in headers
+    ]
+
+    worksheet.append_row(
+        row,
+        value_input_option="USER_ENTERED"
+    )
+
+    return {
+        "success": True,
+        "player_id": player_id,
+        "cell_id": cell_id,
+        "task": task_text,
+        "row": len(records) + 2
+    }
+
+
+# --------------------------------
+# ОТПРАВКА ССЫЛКИ НА ЗАДАНИЕ
+# --------------------------------
+
+
+def submit_player_task(player_id, cell_id, task_url):
+
+    player_id = normalize_player_id(player_id)
+    cell_id = str(cell_id).strip()
+    task_url = str(task_url).strip()
+
+    if not player_id:
+        raise ValueError("Не указан Player_ID.")
+
+    if not cell_id:
+        raise ValueError("Не указан Cell_ID.")
+
+    if not task_url:
+        raise ValueError("Не указана ссылка на задание.")
+
+    worksheet = get_worksheets()["tasks"]
+    headers = worksheet.row_values(1)
+
+    required_headers = [
+        "Player_ID",
+        "Cell_ID",
+        "Ссылка на задание",
+        "Дата сдачи",
+        "Сдано"
+    ]
+
+    for header in required_headers:
+        if header not in headers:
+            raise ValueError(
+                f"В листе «Задания» отсутствует столбец «{header}»."
+            )
+
+    records = worksheet.get_all_records()
+
+    for row_number, record in enumerate(records, start=2):
+
+        record_player_id = normalize_player_id(
+            record.get("Player_ID", "")
+        )
+
+        record_cell_id = str(
+            record.get("Cell_ID", "")
+        ).strip()
+
+        if (
+            record_player_id == player_id
+            and record_cell_id == cell_id
+        ):
+
+            if is_true_flag(record.get("Сдано", False)):
+                raise ValueError(
+                    "Это задание уже отправлено на проверку."
+                )
+
+            submitted_date = datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+            url_column = headers.index("Ссылка на задание") + 1
+            date_column = headers.index("Дата сдачи") + 1
+            submitted_column = headers.index("Сдано") + 1
+
+            worksheet.batch_update(
+                [
+                    {
+                        "range": gspread.utils.rowcol_to_a1(
+                            row_number, url_column
+                        ),
+                        "values": [[task_url]]
+                    },
+                    {
+                        "range": gspread.utils.rowcol_to_a1(
+                            row_number, date_column
+                        ),
+                        "values": [[submitted_date]]
+                    },
+                    {
+                        "range": gspread.utils.rowcol_to_a1(
+                            row_number, submitted_column
+                        ),
+                        "values": [["TRUE"]]
+                    }
+                ],
+                value_input_option="USER_ENTERED"
+            )
+
+            return {
+                "success": True,
+                "player_id": player_id,
+                "cell_id": cell_id,
+                "task_url": task_url,
+                "submitted_date": submitted_date,
+                "status": "Ожидает проверки"
+            }
+
+    raise ValueError(
+        "Задание для этой клетки не найдено. Сначала выберите клетку."
+    )
+

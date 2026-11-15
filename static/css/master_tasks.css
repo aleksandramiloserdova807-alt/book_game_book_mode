@@ -1,0 +1,95 @@
+
+/* ========================================
+   НЕПРОВЕРЕННЫЕ ЗАДАНИЯ МАСТЕРА
+======================================== */
+
+.master-pending-task {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 13px 2px;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.master-pending-task-text {
+    color: #333333;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.master-pending-task-info {
+    color: #888888;
+    font-size: 11px;
+}
+
+.master-pending-task-link {
+    width: fit-content;
+    color: #555555;
+    font-size: 13px;
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+}
+
+    .master-pending-task-link:hover {
+        color: #111111;
+    }
+
+.master-pending-task-no-link {
+    color: #999999;
+    font-size: 12px;
+}
+
+.master-pending-task-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 3px;
+}
+
+    .master-pending-task-actions button {
+        flex: 1;
+        min-width: 0;
+        height: 34px;
+        border: 1px solid #cccccc;
+        border-radius: 5px;
+        background: #ffffff;
+        color: #444444;
+        font-family: inherit;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+        .master-pending-task-actions button:hover:not(:disabled) {
+            background: #f5f5f5;
+            border-color: #999999;
+        }
+
+        .master-pending-task-actions button:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+.master-pending-task-accept {
+    border-color: #b9d4c0 !important;
+    color: #39734a !important;
+}
+
+    .master-pending-task-accept:hover:not(:disabled) {
+        background: #f5faf6 !important;
+    }
+
+.master-pending-task-reject {
+    border-color: #e2c4c4 !important;
+    color: #a94442 !important;
+}
+
+    .master-pending-task-reject:hover:not(:disabled) {
+        background: #fdf6f6 !important;
+    }
+
+.master-pending-task-error {
+    color: #d32f2f;
+    font-size: 12px;
+    line-height: 1.4;
+}

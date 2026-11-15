@@ -1,6 +1,13 @@
 
 document.addEventListener("DOMContentLoaded", function () {
 
+    function isTrueFlag(value) {
+        return value === true ||
+            ["TRUE", "1", "ДА", "YES"].includes(
+                String(value).trim().toUpperCase()
+            );
+    }
+
     // ============================================================
     // ПАРАМЕТРЫ КАРТЫ
     // ============================================================
@@ -759,7 +766,7 @@ document.addEventListener("DOMContentLoaded", function () {
         currentTaskCellId = String(currentCellId);
 
         if (currentTask) {
-            taskSubmitted = Boolean(currentTask.submitted);
+            taskSubmitted = isTrueFlag(currentTask.submitted);
         }
 
         renderPlayerPath();
@@ -856,9 +863,11 @@ document.addEventListener("DOMContentLoaded", function () {
             status.className = "player-task-status";
             status.textContent = task.status || "В работе";
 
-            if (task.accepted && task.submitted) {
+            if (isTrueFlag(task.rejected)) {
+                status.classList.add("rejected");
+            } else if (isTrueFlag(task.accepted) && isTrueFlag(task.submitted)) {
                 status.classList.add("completed");
-            } else if (task.submitted) {
+            } else if (isTrueFlag(task.submitted)) {
                 status.classList.add("pending");
             } else {
                 status.classList.add("in-progress");
@@ -866,10 +875,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
             item.appendChild(status);
 
-            // ФОРМА ОТПРАВКИ ТЕКУЩЕГО ЗАДАНИЯ
-            // Находится внутри карточки задания во вкладке профиля.
+            // ФОРМА ОТПРАВКИ ЗАДАНИЯ
 
-            if (isCurrentTask) {
+            const submitted = isTrueFlag(task.submitted);
+            const accepted = isTrueFlag(task.accepted);
+            const rejected = isTrueFlag(task.rejected);
+
+            if (!submitted && !accepted && !rejected) {
 
                 const form = document.createElement("div");
                 form.className = "player-task-submit-form";
@@ -882,53 +894,47 @@ document.addEventListener("DOMContentLoaded", function () {
                 input.type = "url";
                 input.className = "player-task-url";
                 input.placeholder = "Вставьте ссылку";
-                input.value = task.task_url || "";
-                input.disabled = Boolean(task.submitted);
+                input.value = rejected ? "" : (task.task_url || "");
 
                 const submitButton = document.createElement("button");
                 submitButton.type = "button";
                 submitButton.className = "player-task-submit-button";
-                submitButton.textContent = task.submitted
-                    ? "Отправлено"
-                    : "Отправить";
-
-                submitButton.disabled = Boolean(task.submitted);
+                submitButton.textContent = "Отправить";
 
                 const error = document.createElement("div");
                 error.className = "player-task-submit-error";
 
-                if (task.submitted) {
+                form.appendChild(label);
+                form.appendChild(input);
+                form.appendChild(submitButton);
+                form.appendChild(error);
 
-                    const submittedMessage = document.createElement("div");
-                    submittedMessage.className =
-                        "player-task-submitted-message";
+                submitButton.addEventListener("click", function () {
 
-                    submittedMessage.textContent = task.accepted
-                        ? "Задание принято."
-                        : "Задание отправлено и ожидает проверки.";
-
-                    form.appendChild(submittedMessage);
-
-                } else {
-
-                    form.appendChild(label);
-                    form.appendChild(input);
-                    form.appendChild(submitButton);
-                    form.appendChild(error);
-
-                    submitButton.addEventListener(
-                        "click",
-                        function () {
-                            submitCurrentTask(
-                                String(task.cell_id),
-                                input,
-                                submitButton,
-                                error
-                            );
-                        }
+                    submitCurrentTask(
+                        String(task.cell_id),
+                        input,
+                        submitButton,
+                        error
                     );
-                }
 
+                });
+
+                item.appendChild(form);
+
+            } else if (submitted) {
+
+                const form = document.createElement("div");
+                form.className = "player-task-submit-form";
+
+                const submittedMessage = document.createElement("div");
+                submittedMessage.className = "player-task-submitted-message";
+
+                submittedMessage.textContent = accepted
+                    ? "Задание принято."
+                    : "Задание отправлено и ожидает проверки.";
+
+                form.appendChild(submittedMessage);
                 item.appendChild(form);
             }
 
@@ -948,12 +954,6 @@ document.addEventListener("DOMContentLoaded", function () {
         submitButton,
         errorElement
     ) {
-
-        if (String(cellId) !== String(currentCellId)) {
-            errorElement.textContent =
-                "Это задание больше не является текущим.";
-            return;
-        }
 
         const taskUrl = input.value.trim();
 
@@ -1408,7 +1408,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (selectedTab === "tasks") {
-            loadTasks();
+            loadTasks(true);
         }
     }
 

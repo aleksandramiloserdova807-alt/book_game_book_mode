@@ -269,8 +269,8 @@ def load_master_players(current_player_id):
         current_player_id
     )
 
-    accepted_counts = {}
-    pending_counts = {}
+    submitted_counts = {}
+    rejected_counts = {}
 
     for task in task_records:
 
@@ -285,20 +285,20 @@ def load_master_players(current_player_id):
             task.get("Сдано", False)
         )
 
-        is_accepted = is_true_flag(
-            task.get("Принято", False)
+        is_rejected = is_true_flag(
+            task.get("Отклонено", False)
         )
 
-        if is_submitted and is_accepted:
+        if is_submitted:
 
-            accepted_counts[player_id] = (
-                accepted_counts.get(player_id, 0) + 1
+            submitted_counts[player_id] = (
+                submitted_counts.get(player_id, 0) + 1
             )
 
-        elif is_submitted and not is_accepted:
+        if is_rejected:
 
-            pending_counts[player_id] = (
-                pending_counts.get(player_id, 0) + 1
+            rejected_counts[player_id] = (
+                rejected_counts.get(player_id, 0) + 1
             )
 
     players = []
@@ -335,8 +335,8 @@ def load_master_players(current_player_id):
             "name": name,
             "is_master": is_master,
             "color": color if color else "#ffffff",
-            "accepted_count": accepted_counts.get(player_id, 0),
-            "pending_count": pending_counts.get(player_id, 0)
+            "accepted_count": submitted_counts.get(player_id, 0),
+            "pending_count": rejected_counts.get(player_id, 0)
         })
 
     return players
@@ -513,12 +513,17 @@ def load_player_tasks(player_id):
             record.get("Принято", False)
         )
 
-        if is_submitted and is_accepted:
-            status = "Выполнено"
+        is_rejected = is_true_flag(record.get("Отклонено", False))
 
+        if is_rejected:
+           status = "Отклонено"
+
+        elif is_submitted and is_accepted:
+            status = "Выполнено"
+        
         elif is_submitted:
             status = "Ожидает проверки"
-
+            
         else:
             status = "В работе"
 
@@ -530,6 +535,7 @@ def load_player_tasks(player_id):
             "submitted_date": submitted_date,
             "submitted": is_submitted,
             "accepted": is_accepted,
+            "rejected": is_rejected,
             "status": status
         })
 
@@ -1171,8 +1177,9 @@ def submit_player_task(player_id, cell_id, task_url):
         "Cell_ID",
         "Ссылка на задание",
         "Дата сдачи",
-        "Сдано"
-    ]
+        "Сдано",
+        "Отклонено"
+        ]
 
     for header in required_headers:
         if header not in headers:
@@ -1209,6 +1216,7 @@ def submit_player_task(player_id, cell_id, task_url):
             url_column = headers.index("Ссылка на задание") + 1
             date_column = headers.index("Дата сдачи") + 1
             submitted_column = headers.index("Сдано") + 1
+            rejected_column = headers.index("Отклонено") + 1
 
             worksheet.batch_update(
                 [
@@ -1229,6 +1237,12 @@ def submit_player_task(player_id, cell_id, task_url):
                             row_number, submitted_column
                         ),
                         "values": [["TRUE"]]
+                    },
+                    {
+                        "range": gspread.utils.rowcol_to_a1(
+                            row_number, rejected_column
+                            ),
+                        "values": [["FALSE"]]
                     }
                 ],
                 value_input_option="USER_ENTERED"

@@ -829,7 +829,9 @@ body.login-page {
 }
 
     .player-task-status.in-progress {
-        color: #555555;
+        color: #333333;
+        border-color: #dddddd;
+        background: #ffffff;
     }
 
     .player-task-status.pending {
@@ -1229,4 +1231,20 @@ body.login-page {
     padding: 16px 2px;
     color: #777777;
     font-size: 13px;
+}
+
+/* ========================================
+   ÖÂÅÒÀ ÑÒÀÒÓÑÎÂ ÇÀÄÀÍÈÉ
+======================================== */
+
+.player-task-status.in-progress {
+    color: #333333;
+    border-color: #dedede;
+    background: #ffffff;
+}
+
+.player-task-status.rejected {
+    color: #c62828;
+    border-color: #e5b5b5;
+    background: #fff5f5;
 }

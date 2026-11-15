@@ -813,7 +813,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 acceptedCount.className = "player-accepted-count";
                 acceptedCount.textContent = player.accepted_count ?? 0;
-                acceptedCount.title = "Сданные и принятые задания";
+                acceptedCount.title = "Все сданные задания";
 
                 // Сданные, но ещё не принятые задания.
 
@@ -821,7 +821,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 pendingCount.className = "player-pending-count";
                 pendingCount.textContent = player.pending_count ?? 0;
-                pendingCount.title = "Сданные, но ещё не принятые задания";
+                pendingCount.title = "Отклонённые задания";
 
                 counts.appendChild(acceptedCount);
                 counts.appendChild(pendingCount);

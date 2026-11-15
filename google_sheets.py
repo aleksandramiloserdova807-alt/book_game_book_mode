@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import requests
 
 from datetime import datetime
@@ -7,6 +8,7 @@ from pathlib import Path
 from functools import lru_cache
 
 import gspread
+
 
 
 # --------------------------------
@@ -20,6 +22,13 @@ CREDENTIALS_FILE = Path(
         "GOOGLE_APPLICATION_CREDENTIALS",
         BASE_DIR / "service_account.json"
     )
+)
+
+# JSON авторизации из переменной окружения.
+# В Yandex Cloud будет передаваться через Lockbox.
+
+CREDENTIALS_JSON = os.environ.get(
+    "GOOGLE_SERVICE_ACCOUNT_JSON"
 )
 
 SPREADSHEET_ID = "198xm5KrUsmvhweVEzz_ka487uVrxTMrq2WpEQapCPQk"
@@ -38,22 +47,37 @@ CONNECTION_RETRY_DELAY = 2
 @lru_cache(maxsize=1)
 def connect_to_google_sheets():
 
-    if not CREDENTIALS_FILE.exists():
-        raise FileNotFoundError(
-            f"Не найден файл авторизации: {CREDENTIALS_FILE}"
-        )
-
     last_error = None
 
     for attempt in range(1, CONNECTION_ATTEMPTS + 1):
 
         try:
 
-            client = gspread.service_account(
-            filename=str(CREDENTIALS_FILE)
-)
+            # Облачный вариант: JSON из переменной окружения
+
+            if CREDENTIALS_JSON:
+
+                credentials = json.loads(CREDENTIALS_JSON)
+
+                client = gspread.service_account_from_dict(
+                    credentials
+                )
+
+            # Локальный вариант: JSON-файл
+
+            else:
+
+                if not CREDENTIALS_FILE.exists():
+                    raise FileNotFoundError(
+                        f"Не найден файл авторизации: {CREDENTIALS_FILE}"
+                    )
+
+                client = gspread.service_account(
+                    filename=str(CREDENTIALS_FILE)
+                )
 
             # Тайм-аут: 10 секунд на подключение, 30 секунд на ответ
+
             client.set_timeout((10, 30))
 
             return client.open_by_key(SPREADSHEET_ID)
@@ -71,6 +95,7 @@ def connect_to_google_sheets():
                 time.sleep(CONNECTION_RETRY_DELAY * attempt)
 
     raise last_error
+
 
 # --------------------------------
 # ЧТЕНИЕ GOOGLE SHEETS С ПОВТОРАМИ

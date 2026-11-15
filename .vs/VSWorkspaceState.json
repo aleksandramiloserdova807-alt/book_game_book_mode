@@ -4,8 +4,9 @@
     "\\static",
     "\\static\\css",
     "\\static\\js",
-    "\\templates"
+    "\\templates",
+    "\\venv_test"
   ],
-  "SelectedNode": "\\google_sheets.py",
+  "SelectedNode": "\\.dockerignore",
   "PreviewInSolutionExplorer": false
 }
